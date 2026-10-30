@@ -105,6 +105,201 @@ docker compose up --build -d
 
 ---
 
+## 开发调试
+
+### 后端调试（Python / FastAPI）
+
+**启动调试模式：**
+
+```bash
+cd backend
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 先在 .env 中开启文档接口（否则 /docs 返回 404）
+# ENABLE_DOCS=true
+
+# 方式 1：直接启动（带热重载）
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+# 方式 2：使用 Python 调试器
+python -m debugpy --listen 5678 --wait-for-client -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+**VS Code 调试配置**（`.vscode/launch.json`）：
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI Debug",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+      "env": {"DATABASE_URL": "postgresql+psycopg://vatknow:vatknow@localhost:5432/vatknow"},
+      "cwd": "${workspaceFolder}/backend"
+    }
+  ]
+}
+```
+
+**查看 API 文档：**
+
+启动后访问 [http://localhost:8000/docs](http://localhost:8000/docs) 查看 Swagger UI，可直接测试所有接口。
+
+**日志位置：**
+
+- 本地模式：`.run/api.log`（标准输出）和 `.run/api.err.log`（错误）
+- Docker 模式：`docker compose logs -f api`
+
+### 前端调试（Vue 3 / Vite）
+
+**启动开发服务器（带热重载）：**
+
+```bash
+cd frontend
+npm run dev
+```
+
+Vite 默认启用热模块替换（HMR），修改代码后浏览器自动刷新。
+
+**Vue DevTools：**
+
+安装浏览器扩展 [Vue DevTools](https://devtools.vuejs.org/)，可检查组件状态、Pinia Store、路由等。
+
+**VS Code 调试配置**（`.vscode/launch.json`）：
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Vue Chrome Debug",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend/src"
+    }
+  ]
+}
+```
+
+**日志位置：**
+
+- 本地模式：`.run/web.log`
+- Docker 模式：`docker compose logs -f web`
+- 浏览器控制台：F12 打开 DevTools
+
+### 数据库调试
+
+**连接数据库：**
+
+```bash
+# 本地模式
+psql -U vatknow -d vatknow -h localhost
+
+# Docker 模式
+docker exec -it vatknow-db-1 psql -U vatknow -d vatknow
+```
+
+**常用查询：**
+
+```sql
+-- 查看所有用户
+SELECT id, email, name, is_site_admin FROM users;
+
+-- 查看所有空间
+SELECT id, name, kind, visibility FROM spaces;
+
+-- 查看文档数量
+SELECT space_id, COUNT(*) FROM documents GROUP BY space_id;
+
+-- 查看检索日志
+SELECT * FROM search_logs ORDER BY created_at DESC LIMIT 10;
+```
+
+**重置数据库（清空所有数据）：**
+
+```bash
+# 本地模式
+psql -U vatknow -d postgres -c "DROP DATABASE vatknow;"
+psql -U vatknow -d postgres -c "CREATE DATABASE vatknow OWNER vatknow;"
+
+# Docker 模式
+docker compose down -v  # ⚠️ 会删除所有数据卷
+docker compose up -d db
+```
+
+### Docker 调试
+
+**查看容器状态：**
+
+```bash
+docker compose ps
+```
+
+**进入容器内部：**
+
+```bash
+# 进入后端容器
+docker compose exec api bash
+
+# 进入数据库容器
+docker compose exec db psql -U vatknow -d vatknow
+```
+
+**查看实时日志：**
+
+```bash
+docker compose logs -f          # 所有服务
+docker compose logs -f api      # 仅后端
+docker compose logs -f web      # 仅前端
+docker compose logs -f db       # 仅数据库
+```
+
+**重启单个服务：**
+
+```bash
+docker compose restart api      # 重启后端
+docker compose restart web      # 重启前端
+```
+
+### 常见问题排查
+
+**Q：API 返回 500 错误**
+
+1. 查看后端日志：`.run/api.err.log` 或 `docker compose logs api`
+2. 检查数据库连接：`psql -U vatknow -d vatknow` 能否正常连接
+3. 检查 `.env` 配置：`JWT_SECRET` 是否设置，`DATABASE_URL` 是否正确
+
+**Q：前端无法连接后端**
+
+1. 确认后端已启动：`curl http://localhost:8000/api/v1/health`
+2. 检查 CORS 配置：`.env` 中 `CORS_ORIGINS` 是否包含 `http://localhost:3000`
+3. 前端代理配置：`frontend/vite.config.ts` 中 `/api` 代理是否指向 `http://127.0.0.1:8000`
+
+**Q：数据库连接失败**
+
+1. 检查 PostgreSQL 是否运行：`pg_isready`
+2. 本地模式：确认 `start.sh` 已正确创建用户和数据库
+3. Docker 模式：确认 `db` 容器健康：`docker compose ps`
+4. 检查连接串：`DATABASE_URL` 格式是否正确
+
+**Q：向量检索不可用**
+
+1. 检查 `OPENAI_API_KEY` 是否在 `.env` 中配置
+2. 查看后端日志是否有 API 调用错误
+3. 确认 embedding 模型名称正确（默认 `text-embedding-3-small`）
+
+**Q：热重载不生效**
+
+1. 后端：确认使用 `--reload` 参数启动
+2. 前端：检查文件是否保存在 `src/` 目录下
+3. Docker 模式：需要重新构建镜像 `docker compose up --build`
+
+---
+
 ## 线上部署
 
 ### 服务器要求
@@ -387,6 +582,7 @@ certbot 会自动修改 nginx 配置并设置定期续期任务。
 | `EMBEDDING_DIM` | | 向量维度，默认 `1536` |
 | `DATABASE_URL` | | 数据库连接串，Docker 内自动配置 |
 | `CORS_ORIGINS` | | 允许的跨域来源，逗号分隔。生产环境须改为实际域名，如 `https://your-domain.com` |
+| `ENABLE_DOCS` | | 是否开放 Swagger API 文档（`/docs`、`/redoc`）。默认 `false`，本地开发可设为 `true` |
 
 ---
 

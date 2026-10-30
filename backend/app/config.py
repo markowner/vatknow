@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
     cors_origins: str = "http://localhost:3000"
+    # 是否开放 Swagger API 文档（/docs）。生产环境务必设为 false。
+    enable_docs: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:
