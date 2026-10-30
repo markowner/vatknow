@@ -1,0 +1,24 @@
+[Unit]
+Description=VatKnow API (gunicorn + uvicorn)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/var/www/vatknow/backend
+EnvironmentFile=/var/www/vatknow/.env
+# gunicorn 管理进程 + uvicorn worker，自动 fork 多个子进程处理请求
+# worker 数量建议：CPU 核数 × 2 + 1，内存不足时适当减少
+ExecStart=/var/www/vatknow/backend/.venv/bin/gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --workers 2 \
+    --timeout 120 \
+    --access-logfile /var/log/vatknow-api-access.log \
+    --error-logfile /var/log/vatknow-api-error.log
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

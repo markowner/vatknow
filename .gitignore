@@ -1,0 +1,15 @@
+/.idea
+/.vscode
+/vendor
+*.log
+.env
+/tests/tmp
+/tests/.phpunit.result.cache
+tags
+*.DS_Store
+.eslintrc.json
+/.history
+*/node_modules
+start.sh
+*/dist
+.DS_Store
