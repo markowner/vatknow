@@ -75,13 +75,31 @@ docker compose up --build -d
 
 > 登录后请立即修改默认密码。若已有任何注册用户，则不会重复创建默认账号。
 
-### 本地开发（macOS）
+### 本地开发
+
+脚本会自动检测 Docker，有则用容器启动，无则走本地环境。
+
+**macOS / Linux：**
 
 ```bash
-./start.sh
-# 脚本会自动：安装并启动 PostgreSQL、创建数据库和用户、启动 API（:8000）、启动前端 dev server（:3000）
-# 仅支持 macOS（依赖 Homebrew），Linux 用户请参考「裸机部署」章节手动启动各服务
+./start.sh            # 自动检测，优先 Docker
+./start.sh --local    # 强制本地启动（不用 Docker）
+./start.sh --docker   # 强制 Docker（没装会报错）
+./start.sh --help     # 查看帮助
 ```
+
+**Windows：**
+
+双击 `start.bat`，或在 PowerShell 中执行：
+
+```powershell
+.\start.ps1            # 自动检测，优先 Docker
+.\start.ps1 -Local     # 强制本地启动
+.\start.ps1 -Docker    # 强制 Docker
+.\start.ps1 -Help      # 查看帮助
+```
+
+> Windows 本地模式需预装 [PostgreSQL 16+](https://www.postgresql.org/download/windows/) 和 [Node.js 20+](https://nodejs.org/)，并确保 `psql` 和 `npm` 在 PATH 中。
 
 > 未配置 `OPENAI_API_KEY` 时，文档管理与关键词检索仍可用，智能问答与向量检索会提示缺少配置。
 
@@ -403,7 +421,9 @@ vatknow/
 │   ├── nginx.prod.conf   # nginx 生产配置（反向代理 + 静态资源）
 │   └── vatknow-api.service # systemd 服务单元文件
 ├── docker-compose.yml
-└── start.sh              # 本地开发一键启动脚本
+├── start.sh              # 本地开发启动脚本（macOS / Linux）
+├── start.ps1             # 本地开发启动脚本（Windows PowerShell）
+└── start.bat             # Windows 双击入口
 ```
 
 ---
