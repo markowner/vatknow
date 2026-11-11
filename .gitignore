@@ -13,3 +13,4 @@ tags
 start.sh
 */dist
 .DS_Store
+.aider*
